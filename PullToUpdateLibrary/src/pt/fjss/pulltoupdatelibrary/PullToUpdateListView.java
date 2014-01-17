@@ -79,7 +79,7 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 	}
 
 	private void init(Context context) {
-
+		//initial states
 		pullState = DOING_NOTHING;
 		mode = MODE.UP_AND_DOWN;
 		isFooterLoading = false;
