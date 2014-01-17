@@ -2,7 +2,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
     android:layout_height="wrap_content"
-    android:background="#FF0000"
+    android:background="@null"
     android:minHeight="50dp"
     android:paddingBottom="10dp"
     android:paddingTop="10dp"
@@ -36,6 +36,16 @@
         android:gravity="center"
         android:text="Loading.........."
         android:textColor="@android:color/black" />
+
+    <ProgressBar
+        android:id="@+id/headerProgressbar"
+        style="?android:attr/progressBarStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginLeft="30dp"
+        />
 
 </RelativeLayout>
    

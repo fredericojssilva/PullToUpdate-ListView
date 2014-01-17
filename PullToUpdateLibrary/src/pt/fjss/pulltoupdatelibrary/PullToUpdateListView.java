@@ -1,40 +1,42 @@
 package pt.fjss.pulltoupdatelibrary;
 
-
 import android.content.Context;
-
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
-
+import android.view.View;
 import android.view.animation.LinearInterpolator;
-
 import android.view.animation.RotateAnimation;
-
 import android.widget.AbsListView;
 import android.widget.ImageView;
-
 import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.AbsListView.OnScrollListener;
+import android.widget.ProgressBar;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 /**
- * @author frederico
+ * @author frederico <fredericojssilva@gmail.com>
  * 
  */
 
-public class Pulltoupdate extends ListView implements OnScrollListener {
+public class PullToUpdateListView extends ListView implements OnScrollListener {
 	private static final int DOING_NOTHING = 0;
 	private static final int LOADING = 1;
 	private static final int RELEASE = 2;
+	
+	private static String PULL_MESSAGE = "Pull to refresh.";
+	private static String RELEASE_MESSAGE= "Release to refresh.";
+	private static String LOADING_MESSAGE = "Loading...";
 
 	private int pullState;
 	private int headerHeigh;
 	private float lastY;
-	private boolean shakeTrick;
+
 	private int scrollState;
 
 	private int headerFixedOriginalHeight;
@@ -45,20 +47,33 @@ public class Pulltoupdate extends ListView implements OnScrollListener {
 	private LayoutInflater mInflater;
 	private TextView headerMessage;
 	private ImageView headerImage;
+	private ProgressBar headerProgressBar;
+
+	private RelativeLayout mFooterView;
+	private TextView footerMessage;
+	private ProgressBar footerProgressBar;
 
 	private RotateAnimation mImageFlipDownAnimation, mImageFlipUpAnimation;
+	private MODE mode;
+	private boolean autoLoad;
+	private int autoLoadPosition;
+	private boolean isFooterLoading;
 
-	public Pulltoupdate(Context context) {
+	public enum MODE {
+		UP_ONLY, UP_AND_DOWN;
+	}
+
+	public PullToUpdateListView(Context context) {
 		super(context);
 		init(context);
 	}
 
-	public Pulltoupdate(Context context, AttributeSet attrs, int defStyle) {
+	public PullToUpdateListView(Context context, AttributeSet attrs, int defStyle) {
 		super(context, attrs, defStyle);
 		init(context);
 	}
 
-	public Pulltoupdate(Context context, AttributeSet attrs) {
+	public PullToUpdateListView(Context context, AttributeSet attrs) {
 		super(context, attrs);
 		init(context);
 	}
@@ -66,6 +81,11 @@ public class Pulltoupdate extends ListView implements OnScrollListener {
 	private void init(Context context) {
 
 		pullState = DOING_NOTHING;
+		mode = MODE.UP_AND_DOWN;
+		isFooterLoading = false;
+		/*
+		 * Header
+		 */
 		mInflater = (LayoutInflater) context
 				.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
@@ -73,10 +93,25 @@ public class Pulltoupdate extends ListView implements OnScrollListener {
 				false);
 		headerMessage = (TextView) mHeaderView.findViewById(R.id.headerMessage);
 		headerImage = (ImageView) mHeaderView.findViewById(R.id.headerImage);
+		headerProgressBar = (ProgressBar) mHeaderView.findViewById(R.id.headerProgressbar);
+		headerImage.setVisibility(View.VISIBLE);
+		headerProgressBar.setVisibility(View.INVISIBLE);
 
 		addHeaderView(mHeaderView);
 		headerHeigh = mHeaderView.getPaddingTop();// getLayoutParams().height;
 		headerFixedOriginalHeight = 100;// mHeaderView.getHeight();
+		/*
+		 * Footer
+		 */
+		mFooterView = (RelativeLayout) mInflater.inflate(R.layout.footer, this,
+				false);
+		footerMessage = (TextView) mFooterView
+				.findViewById(R.id.footer_message);
+		footerProgressBar = (ProgressBar) mFooterView
+				.findViewById(R.id.footer_progressbar);
+
+		addFooterView(mFooterView);
+		footerMessage.setVisibility(View.GONE);
 
 		/*
 		 * Animation
@@ -99,7 +134,6 @@ public class Pulltoupdate extends ListView implements OnScrollListener {
 		 * 
 		 */
 
-		shakeTrick = false;
 		setVerticalFadingEdgeEnabled(false);
 		setSmoothScrollbarEnabled(true);
 
@@ -109,17 +143,22 @@ public class Pulltoupdate extends ListView implements OnScrollListener {
 	@Override
 	public void onScroll(AbsListView view, int firstVisibleItem,
 			int visibleItemCount, int totalItemCount) {
-
+	
 		if (firstVisibleItem == 0 && pullState == DOING_NOTHING
 				&& scrollState == SCROLL_STATE_FLING) {
 			setSelection(1);
 
-			shakeTrick = true;
+		}
 
-		} else if (shakeTrick && scrollState == SCROLL_STATE_FLING) {
-			setSelection(1);
-		} else if (firstVisibleItem == 0) {
-			// scrolledUp = false;
+		if (mode == MODE.UP_AND_DOWN
+				&& autoLoad
+				&& (getLastVisiblePosition() >= getCount()
+						- (1 + autoLoadPosition))
+				&& (getCount() - (1 + autoLoadPosition) > getFirstVisiblePosition())
+				&& !isFooterLoading) {
+			isFooterLoading = true;
+			refreshDown();
+
 		}
 
 	}
@@ -137,7 +176,6 @@ public class Pulltoupdate extends ListView implements OnScrollListener {
 	@Override
 	public boolean onTouchEvent(MotionEvent ev) {
 		final int y = (int) ev.getY();
-		shakeTrick = false;
 		switch (ev.getAction()) {
 		case MotionEvent.ACTION_MOVE:
 			if ((getFirstVisiblePosition() == 0 || getFirstVisiblePosition() == 1)
@@ -145,7 +183,7 @@ public class Pulltoupdate extends ListView implements OnScrollListener {
 				setHeaderTopPadding(ev);
 				if (getFirstVisiblePosition() == 0
 						&& mHeaderView.getBottom() >= (headerFixedOriginalHeight + 200)) {
-					headerMessage.setText("Release to refresh");
+					headerMessage.setText(RELEASE_MESSAGE);
 
 					if (pullState != RELEASE) {
 						headerImage.clearAnimation();
@@ -155,7 +193,7 @@ public class Pulltoupdate extends ListView implements OnScrollListener {
 					pullState = RELEASE;
 
 				} else {
-					headerMessage.setText("Pull to refresh");
+					headerMessage.setText(PULL_MESSAGE);
 					if (pullState != DOING_NOTHING) {
 						headerImage.clearAnimation();
 						headerImage.startAnimation(mImageFlipUpAnimation);
@@ -176,15 +214,13 @@ public class Pulltoupdate extends ListView implements OnScrollListener {
 
 				resetHeader();
 				setSelection(0);
-				headerMessage.setText("Loading...");
+				headerMessage.setText(LOADING_MESSAGE);
 				refresh();
 			} else if (getFirstVisiblePosition() == 0 && pullState != LOADING) {
 				Log.d("FRED", "NHAA");
 
 				setSelection(1);
 
-			} else if (getLastVisiblePosition() == getCount() - 1) {
-				refreshDown();
 			}
 
 			resetHeader();
@@ -234,36 +270,126 @@ public class Pulltoupdate extends ListView implements OnScrollListener {
 
 	}
 
-	public void refresh() {
+	private void refresh() {
+		headerImage.setVisibility(View.INVISIBLE);
+		headerProgressBar.setVisibility(View.VISIBLE);
 		if (refreshListener != null) {
 			refreshListener.onRefreshUp();
 		}
 	}
+
+	private void refreshDown() {
+
+		if (refreshListener != null) {
+			refreshListener.onRefeshDown();
+		}
+	}
+
+	/********************
+	 * PUBLIC METHODSS
+	 ******************/
 
 	/*
 	 * Reset up header list
 	 */
 	public void onRefreshUpComplete() {
 		resetHeader();
+		headerImage.setVisibility(View.VISIBLE);
+		headerProgressBar.setVisibility(View.INVISIBLE);
 		if (getFirstVisiblePosition() == 0) {
 			invalidateViews();
 			setSelection(1);
 		}
+		
+		
 		pullState = DOING_NOTHING;
 	}
 
 	/*
 	 * Reset down header list
 	 */
-	public void onRefreshDownComplete() {
-		// removeFooterView(v);
+	public void onRefreshDownComplete(String message) {
+		if (message != null) {
+			footerMessage.setText(message);
+			footerMessage.setVisibility(View.VISIBLE);
+			footerProgressBar.setVisibility(View.GONE);
+		}
+		isFooterLoading = false;
 	}
 
-	public void refreshDown() {
-
-		if (refreshListener != null) {
-			refreshListener.onRefeshDown();
+	/**
+	 * Set mode
+	 * 
+	 * @param mode
+	 * 
+	 *            MODE.UP_ONLY -> Only up pull active MODE.UP_AND_DOWN -> Up and
+	 *            down pull active
+	 */
+	public void setPullMode(MODE mode) {
+		this.mode = mode;
+		if (mode == MODE.UP_ONLY) {
+			removeFooterView(mFooterView);
 		}
+	}
+
+	/**
+	 * call onRefreshDown() when autoLoadDistanceToEnd Value to end of the list
+	 * is reached
+	 * 
+	 * @param autoload
+	 * @param autoLoadDistanceToEnd
+	 *            distance to end of list
+	 */
+	public void setAutoLoad(boolean autoload, int autoLoadDistanceToEnd) {
+		this.autoLoad = autoload;
+		this.autoLoadPosition = autoLoadDistanceToEnd;
+	}
+	
+	/**
+	 * Set pull to refresh message
+	 * @param message
+	 */
+	public void setPullMessage(String message)
+	{
+		PULL_MESSAGE = message;
+	}
+	/**
+	 * Set release to refresh message
+	 * @param message
+	 */
+	public void setReleaseMessage(String message)
+	{
+		RELEASE_MESSAGE = message;
+	}
+	/**
+	 * Set loading message
+	 * @param message
+	 */
+	public void setLoadingMessage(String message)
+	{
+		LOADING_MESSAGE = message;
+	}
+	
+	/**
+	 * 
+	 * @param color
+	 */
+	public void setPullMessageColor(int color)
+	{
+		headerMessage.setTextColor(color);
+	}
+	
+	/**
+	 * @param size
+	 */
+	public void setPullMessageSize(float size)
+	{
+		headerMessage.setTextSize(size);
+		
+	}
+	public void setPullRotateImage(Drawable image)
+	{
+		headerImage.setImageDrawable(image);
 	}
 
 }
