@@ -58,6 +58,7 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 	private boolean autoLoad;
 	private int autoLoadPosition;
 	private boolean isFooterLoading;
+	private int releaseTrigger;
 
 	public enum MODE {
 		UP_ONLY, UP_AND_DOWN;
@@ -100,6 +101,7 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 		addHeaderView(mHeaderView);
 		headerHeigh = mHeaderView.getPaddingTop();// getLayoutParams().height;
 		headerFixedOriginalHeight = 100;// mHeaderView.getHeight();
+		releaseTrigger = 2;
 		/*
 		 * Footer
 		 */
@@ -182,7 +184,7 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 					&& (pullState == RELEASE || pullState == DOING_NOTHING)) {
 				setHeaderTopPadding(ev);
 				if (getFirstVisiblePosition() == 0
-						&& mHeaderView.getBottom() >= (headerFixedOriginalHeight + 200)) {
+						&& mHeaderView.getBottom() >= (headerFixedOriginalHeight * 2)) {
 					headerMessage.setText(RELEASE_MESSAGE);
 
 					if (pullState != RELEASE) {
@@ -208,7 +210,7 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 		case MotionEvent.ACTION_UP:
 			setVerticalScrollBarEnabled(true);
 			if (getFirstVisiblePosition() == 0
-					&& mHeaderView.getBottom() >= (headerFixedOriginalHeight + 200)) {
+					&& mHeaderView.getBottom() >= (headerFixedOriginalHeight * 2)) {
 				Log.d("FRED", "LOADING");
 				pullState = LOADING;
 
@@ -390,6 +392,15 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 	public void setPullRotateImage(Drawable image)
 	{
 		headerImage.setImageDrawable(image);
+	}
+	
+	/**
+	 * Release TRigger >1
+	 * @param t
+	 */
+	public void setReleaseTrigger(int t)
+	{
+		releaseTrigger = t;
 	}
 
 }
