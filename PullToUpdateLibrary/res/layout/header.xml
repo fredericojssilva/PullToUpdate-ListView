@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:background="#FF0000"
+    android:minHeight="50dp"
+    android:paddingBottom="10dp"
+    android:paddingTop="10dp"
+    android:gravity="bottom"
+    android:id="@+id/headerLayout"
+    	 >
+
+<RelativeLayout
+    android:id="@+id/rl"
+    android:layout_width="match_parent"
+    android:layout_height="50dp"
+    android:layout_alignParentBottom="true"
+    android:layout_alignParentLeft="true"
+    >
+
+    <ImageView
+        android:id="@+id/headerImage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:src="@drawable/ic_launcher"
+        android:layout_marginLeft="30dp" />
+
+    <TextView
+        android:id="@+id/headerMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:gravity="center"
+        android:text="Loading.........."
+        android:textColor="@android:color/black" />
+
+</RelativeLayout>
+   
+</RelativeLayout>
+
+<!-- <?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content"
+    android:background="#FF0000"
+    android:minHeight="50dp"
+    android:paddingBottom="15dp"
+    android:paddingTop="15dp"
+    android:gravity="center"
+    android:id="@+id/headerLayout"
+    	 >
+
+    <TextView
+        android:id="@+id/headerMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Loading.........."
+        android:textColor="@android:color/black" />
+
+</RelativeLayout> -->
+
