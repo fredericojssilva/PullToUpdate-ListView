@@ -184,7 +184,7 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 					&& (pullState == RELEASE || pullState == DOING_NOTHING)) {
 				setHeaderTopPadding(ev);
 				if (getFirstVisiblePosition() == 0
-						&& mHeaderView.getBottom() >= (headerFixedOriginalHeight * 2)) {
+						&& mHeaderView.getBottom() >= (headerFixedOriginalHeight * releaseTrigger)) {
 					headerMessage.setText(RELEASE_MESSAGE);
 
 					if (pullState != RELEASE) {
@@ -210,7 +210,7 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 		case MotionEvent.ACTION_UP:
 			setVerticalScrollBarEnabled(true);
 			if (getFirstVisiblePosition() == 0
-					&& mHeaderView.getBottom() >= (headerFixedOriginalHeight * 2)) {
+					&& mHeaderView.getBottom() >= (headerFixedOriginalHeight * releaseTrigger)) {
 				Log.d("FRED", "LOADING");
 				pullState = LOADING;
 
