@@ -1,13 +1,17 @@
 package pt.fjss.pulltoupdatelibrary;
 
+
+
+
 import android.content.Context;
-import android.graphics.Color;
+
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
+
 import android.view.animation.LinearInterpolator;
 import android.view.animation.RotateAnimation;
 import android.widget.AbsListView;
@@ -28,13 +32,15 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 	private static final int DOING_NOTHING = 0;
 	private static final int LOADING = 1;
 	private static final int RELEASE = 2;
-	
+
 	private static String PULL_MESSAGE = "Pull to refresh.";
-	private static String RELEASE_MESSAGE= "Release to refresh.";
+	private static String RELEASE_MESSAGE = "Release to refresh.";
 	private static String LOADING_MESSAGE = "Loading...";
 
 	private int pullState;
 	private int headerHeigh;
+	private int footerHeigh;
+
 	private float lastY;
 
 	private int scrollState;
@@ -55,6 +61,7 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 
 	private RotateAnimation mImageFlipDownAnimation, mImageFlipUpAnimation;
 	private MODE mode;
+	private CurrentState currentState;
 	private boolean autoLoad;
 	private int autoLoadPosition;
 	private boolean isFooterLoading;
@@ -62,6 +69,10 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 
 	public enum MODE {
 		UP_ONLY, UP_AND_DOWN;
+	}
+
+	public enum CurrentState {
+		LOADING_UP, LOADING_DOWN;
 	}
 
 	public PullToUpdateListView(Context context) {
@@ -80,54 +91,48 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 	}
 
 	private void init(Context context) {
-		//initial states
+		// initial states
 		pullState = DOING_NOTHING;
 		mode = MODE.UP_AND_DOWN;
 		isFooterLoading = false;
 		/*
 		 * Header
 		 */
-		mInflater = (LayoutInflater) context
-				.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		mInflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
 
-		mHeaderView = (RelativeLayout) mInflater.inflate(R.layout.header, this,
-				false);
+		mHeaderView = (RelativeLayout) mInflater.inflate(R.layout.header, this, false);
 		headerMessage = (TextView) mHeaderView.findViewById(R.id.headerMessage);
 		headerImage = (ImageView) mHeaderView.findViewById(R.id.headerImage);
 		headerProgressBar = (ProgressBar) mHeaderView.findViewById(R.id.headerProgressbar);
 		headerImage.setVisibility(View.VISIBLE);
 		headerProgressBar.setVisibility(View.INVISIBLE);
 
-		addHeaderView(mHeaderView);
 		headerHeigh = mHeaderView.getPaddingTop();// getLayoutParams().height;
 		headerFixedOriginalHeight = 100;// mHeaderView.getHeight();
 		releaseTrigger = 2;
+
 		/*
 		 * Footer
 		 */
-		mFooterView = (RelativeLayout) mInflater.inflate(R.layout.footer, this,
-				false);
-		footerMessage = (TextView) mFooterView
-				.findViewById(R.id.footer_message);
-		footerProgressBar = (ProgressBar) mFooterView
-				.findViewById(R.id.footer_progressbar);
+		mFooterView = (RelativeLayout) mInflater.inflate(R.layout.footer, this, false);
+		footerMessage = (TextView) mFooterView.findViewById(R.id.footer_message);
+		footerProgressBar = (ProgressBar) mFooterView.findViewById(R.id.footer_progressbar);
 
 		addFooterView(mFooterView);
+		footerHeigh = mFooterView.getPaddingBottom();
 		footerMessage.setVisibility(View.GONE);
 
 		/*
 		 * Animation
 		 */
 		// Down
-		mImageFlipDownAnimation = new RotateAnimation(0, -180,
-				RotateAnimation.RELATIVE_TO_SELF, 0.5f,
+		mImageFlipDownAnimation = new RotateAnimation(0, -180, RotateAnimation.RELATIVE_TO_SELF, 0.5f,
 				RotateAnimation.RELATIVE_TO_SELF, 0.5f);
 		mImageFlipDownAnimation.setInterpolator(new LinearInterpolator());
 		mImageFlipDownAnimation.setDuration(250);
 		mImageFlipDownAnimation.setFillAfter(true);
 		// Up
-		mImageFlipUpAnimation = new RotateAnimation(-180, 0,
-				RotateAnimation.RELATIVE_TO_SELF, 0.5f,
+		mImageFlipUpAnimation = new RotateAnimation(-180, 0, RotateAnimation.RELATIVE_TO_SELF, 0.5f,
 				RotateAnimation.RELATIVE_TO_SELF, 0.5f);
 		mImageFlipUpAnimation.setInterpolator(new LinearInterpolator());
 		mImageFlipUpAnimation.setDuration(250);
@@ -140,29 +145,33 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 		setSmoothScrollbarEnabled(true);
 
 		super.setOnScrollListener(this);
+
+		Log.d("FRED", "init: " + (getHeight() + " - " + mFooterView.getBottom()));
+
 	}
 
 	@Override
-	public void onScroll(AbsListView view, int firstVisibleItem,
-			int visibleItemCount, int totalItemCount) {
-	
-		if (firstVisibleItem == 0 && pullState == DOING_NOTHING
-				&& scrollState == SCROLL_STATE_FLING) {
-			setSelection(1);
+	public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
+
+		if (firstVisibleItem == 0 && pullState == DOING_NOTHING && scrollState == SCROLL_STATE_FLING
+				&& getHeaderViewsCount() == 1) {
+			setSelection(0);
+
+			try {
+				removeHeaderView(mHeaderView);
+			} catch (Exception e) {
+				// TODO: handle exception
+			}
 
 		}
 
-		if (mode == MODE.UP_AND_DOWN
-				&& autoLoad
-				&& (getLastVisiblePosition() >= getCount()
-						- (1 + autoLoadPosition))
-				&& (getCount() - (1 + autoLoadPosition) > getFirstVisiblePosition())
-				&& !isFooterLoading) {
+		if (mode == MODE.UP_AND_DOWN && autoLoad
+				&& (getLastVisiblePosition() >= getCount() - (1 + autoLoadPosition))
+				&& (getCount() - (1 + autoLoadPosition) > getFirstVisiblePosition()) && !isFooterLoading) {
 			isFooterLoading = true;
 			refreshDown();
 
 		}
-
 	}
 
 	@Override
@@ -173,6 +182,8 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 
 	public void setOnRefreshListener(IonRefreshListener onRefreshListener) {
 		refreshListener = onRefreshListener;
+		Log.d("FRED", "setOnRefreshListener: " + (getHeight() + " - " + mFooterView.getBottom()));
+
 	}
 
 	@Override
@@ -180,7 +191,7 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 		final int y = (int) ev.getY();
 		switch (ev.getAction()) {
 		case MotionEvent.ACTION_MOVE:
-			if ((getFirstVisiblePosition() == 0 || getFirstVisiblePosition() == 1)
+			if ((getFirstVisiblePosition() == 0 || getFirstVisiblePosition() == 0)
 					&& (pullState == RELEASE || pullState == DOING_NOTHING)) {
 				setHeaderTopPadding(ev);
 				if (getFirstVisiblePosition() == 0
@@ -204,6 +215,11 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 				}
 
 			}
+			Log.d("FRED", "lASTP: " + getLastVisiblePosition() + " - " + getCount());
+			if (!autoLoad && getLastVisiblePosition() == getCount() - 1) {
+				setFooterBottomPadding(ev);
+
+			}
 
 			break;
 
@@ -218,18 +234,37 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 				setSelection(0);
 				headerMessage.setText(LOADING_MESSAGE);
 				refresh();
-			} else if (getFirstVisiblePosition() == 0 && pullState != LOADING) {
+			} else if (getFirstVisiblePosition() == 0 && pullState != LOADING && getHeaderViewsCount() == 1) {
 				Log.d("FRED", "NHAA");
 
-				setSelection(1);
+				removeHeaderView(mHeaderView);
 
+				if (getHeaderViewsCount() == 0)
+					setSelection(0);
+				else
+					setSelection(1);
+
+			} else {
+				// removeHeaderView(mHeaderView);
 			}
 
 			resetHeader();
+			resetFooter();
+
+			if (pullState != LOADING && getLastVisiblePosition() == getCount() - 1) {
+				// go to bottom
+				// setSelection(getCount() - 2);
+
+				if ((getHeight() - mFooterView.getTop()) >= (headerFixedOriginalHeight * releaseTrigger)) {
+					Log.d("FRED", "TRIGGER");
+					refreshDown();
+				}
+			}
 
 			break;
 		case MotionEvent.ACTION_DOWN:
 			lastY = y;
+
 			break;
 		}
 		return super.onTouchEvent(ev);
@@ -238,28 +273,67 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 	@Override
 	public void setAdapter(ListAdapter adapter) {
 		super.setAdapter(adapter);
-		setSelection(1);
+
+		setSelection(0);
 	}
 
 	@Override
 	protected void onAttachedToWindow() {
 		super.onAttachedToWindow();
-		setSelection(1);
+		setSelection(0);
 	}
 
 	/**
 	 * Increase header top padding
 	 */
 	private void setHeaderTopPadding(MotionEvent me) {
+		// Know if swipe is UP
+		if (lastY > me.getY())
+			return;
+
+		if (getHeaderViewsCount() == 0) {
+			if (mFooterView.getBottom() != 0) {
+
+				mFooterView.setPadding(mFooterView.getPaddingLeft(), mFooterView.getPaddingTop(),
+						mFooterView.getPaddingRight(), (getHeight() - mFooterView.getBottom()) + footerHeigh);
+			}
+			addHeaderView(mHeaderView);
+			setSelection(1);
+		}
+
 		setVerticalFadingEdgeEnabled(false);
+		mHeaderView.setVisibility(View.VISIBLE);
 
 		for (int p = 0; p < me.getHistorySize(); p++) {
 			setVerticalScrollBarEnabled(false);
 
 			int topPadding = (int) (((me.getHistoricalY(p) - lastY) - headerHeigh) / 2);
-			mHeaderView.setPadding(mHeaderView.getPaddingLeft(), topPadding,
-					mHeaderView.getPaddingRight(),
+			mHeaderView.setPadding(mHeaderView.getPaddingLeft(), topPadding, mHeaderView.getPaddingRight(),
 					mHeaderView.getPaddingBottom());
+
+		}
+
+	}
+
+	/**
+	 * Increase footer bootom padding
+	 */
+	private void setFooterBottomPadding(MotionEvent me) {
+
+		if (lastY < me.getY())
+			return;
+
+		footerProgressBar.setVisibility(View.VISIBLE);
+
+		setVerticalFadingEdgeEnabled(false);
+
+		for (int p = 0; p < me.getHistorySize(); p++) {
+			setVerticalScrollBarEnabled(false);
+
+			int bottomPadding = (int) (((lastY - me.getHistoricalY(p)) + footerHeigh) / 2);
+
+			mFooterView.setPadding(mFooterView.getPaddingLeft(), mFooterView.getPaddingTop(),
+					mFooterView.getPaddingRight(), bottomPadding);
 
 		}
 
@@ -267,14 +341,21 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 
 	private void resetHeader() {
 		headerImage.clearAnimation();
-		mHeaderView.setPadding(mHeaderView.getPaddingLeft(), headerHeigh,
-				mHeaderView.getPaddingRight(), mHeaderView.getPaddingBottom());
+		mHeaderView.setPadding(mHeaderView.getPaddingLeft(), headerHeigh, mHeaderView.getPaddingRight(),
+				mHeaderView.getPaddingBottom());
+
+	}
+
+	private void resetFooter() {
+
+		mFooterView.setPadding(mFooterView.getPaddingLeft(), 10, mFooterView.getPaddingRight(), footerHeigh);
 
 	}
 
 	private void refresh() {
 		headerImage.setVisibility(View.INVISIBLE);
 		headerProgressBar.setVisibility(View.VISIBLE);
+		currentState = CurrentState.LOADING_UP;
 		if (refreshListener != null) {
 			refreshListener.onRefreshUp();
 		}
@@ -282,9 +363,14 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 
 	private void refreshDown() {
 
+		footerMessage.setVisibility(View.GONE);
+		footerProgressBar.setVisibility(View.VISIBLE);
+		currentState = CurrentState.LOADING_DOWN;
+
 		if (refreshListener != null) {
 			refreshListener.onRefeshDown();
 		}
+
 	}
 
 	/********************
@@ -298,12 +384,13 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 		resetHeader();
 		headerImage.setVisibility(View.VISIBLE);
 		headerProgressBar.setVisibility(View.INVISIBLE);
-		if (getFirstVisiblePosition() == 0) {
-			invalidateViews();
-			setSelection(1);
-		}
-		
-		
+		removeHeaderView(mHeaderView);
+		/*
+		 * if (getFirstVisiblePosition() == 0) { invalidateViews();
+		 * setSelection(0); }
+		 */
+		setSelection(0);
+
 		pullState = DOING_NOTHING;
 	}
 
@@ -317,6 +404,22 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 			footerProgressBar.setVisibility(View.GONE);
 		}
 		isFooterLoading = false;
+
+	}
+
+	public void onRefresh() {
+		if (currentState == null)
+			return;
+
+		switch (currentState) {
+		case LOADING_DOWN:
+			onRefreshDownComplete(null);
+			break;
+		case LOADING_UP:
+			onRefreshUpComplete();
+			break;
+		}
+
 	}
 
 	/**
@@ -345,62 +448,69 @@ public class PullToUpdateListView extends ListView implements OnScrollListener {
 	public void setAutoLoad(boolean autoload, int autoLoadDistanceToEnd) {
 		this.autoLoad = autoload;
 		this.autoLoadPosition = autoLoadDistanceToEnd;
+
 	}
-	
+
 	/**
 	 * Set pull to refresh message
+	 * 
 	 * @param message
 	 */
-	public void setPullMessage(String message)
-	{
+	public void setPullMessage(String message) {
 		PULL_MESSAGE = message;
 	}
+
 	/**
 	 * Set release to refresh message
+	 * 
 	 * @param message
 	 */
-	public void setReleaseMessage(String message)
-	{
+	public void setReleaseMessage(String message) {
 		RELEASE_MESSAGE = message;
 	}
+
 	/**
 	 * Set loading message
+	 * 
 	 * @param message
 	 */
-	public void setLoadingMessage(String message)
-	{
+	public void setLoadingMessage(String message) {
 		LOADING_MESSAGE = message;
 	}
-	
+
 	/**
 	 * 
 	 * @param color
 	 */
-	public void setPullMessageColor(int color)
-	{
+	public void setPullMessageColor(int color) {
 		headerMessage.setTextColor(color);
 	}
-	
+
 	/**
 	 * @param size
 	 */
-	public void setPullMessageSize(float size)
-	{
+	public void setPullMessageSize(float size) {
 		headerMessage.setTextSize(size);
-		
+
 	}
-	public void setPullRotateImage(Drawable image)
-	{
+
+	public void setPullRotateImage(Drawable image) {
 		headerImage.setImageDrawable(image);
 	}
-	
+
 	/**
 	 * Release TRigger >1
+	 * 
 	 * @param t
 	 */
-	public void setReleaseTrigger(int t)
-	{
+	public void setReleaseTrigger(int t) {
 		releaseTrigger = t;
+	}
+
+	public void setFooterWarning(String message) {
+		footerMessage.setText(message);
+		footerMessage.setVisibility(View.VISIBLE);
+		footerProgressBar.setVisibility(View.GONE);
 	}
 
 }
